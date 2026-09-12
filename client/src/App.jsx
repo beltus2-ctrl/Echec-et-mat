@@ -7,6 +7,7 @@ function App() {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const [slowConnect, setSlowConnect] = useState(false);
   const [session, setSession] = useState(null);
   const [error, setError] = useState('');
 
@@ -33,6 +34,15 @@ function App() {
       socket.off('disconnect', handleDisconnect);
     };
   }, []);
+
+  useEffect(() => {
+    if (!connecting) {
+      setSlowConnect(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlowConnect(true), 4000);
+    return () => clearTimeout(timer);
+  }, [connecting]);
 
   function withConnection(action) {
     if (socket.connected) {
@@ -95,6 +105,19 @@ function App() {
       </label>
 
       {error && <div className="error-banner">{error}</div>}
+
+      {connecting && (
+        <div className="connecting-banner">
+          Connexion en cours…
+          {slowConnect && (
+            <span className="connecting-hint">
+              {' '}
+              Le serveur se réveille peut-être après une période d'inactivité,
+              ça peut prendre jusqu'à 30-50 secondes.
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="lobby-actions">
         <button className="primary" onClick={createRoom} disabled={connecting}>

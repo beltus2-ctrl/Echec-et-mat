@@ -1,0 +1,15 @@
+name: Keep Render server awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          curl -sS -o /dev/null -w "HTTP %{http_code}\n" --max-time 60 \
+            https://echec-et-mat-server.onrender.com/health

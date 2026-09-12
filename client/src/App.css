@@ -98,6 +98,22 @@ button.primary {
   font-size: 13px;
 }
 
+.connecting-banner {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--text-h);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  max-width: 340px;
+  text-align: center;
+}
+
+.connecting-hint {
+  color: var(--text);
+  font-size: 13px;
+}
+
 .error-banner {
   background: rgba(220, 38, 38, 0.12);
   border: 1px solid rgba(220, 38, 38, 0.4);
