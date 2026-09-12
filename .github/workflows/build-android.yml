@@ -35,7 +35,7 @@ jobs:
 
       - name: Build web assets
         env:
-          VITE_SERVER_URL: ${{ vars.VITE_SERVER_URL || 'https://example-server-not-configured.invalid' }}
+          VITE_SERVER_URL: ${{ vars.VITE_SERVER_URL || 'https://echec-et-mat-server.onrender.com' }}
         run: npm run build
 
       - name: Sync Capacitor Android project
