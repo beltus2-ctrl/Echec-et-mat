@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import { socket } from '../socket';
+import { boardTheme } from '../boardTheme';
 
 const STATUS_LABELS = {
   in_progress: '',
@@ -119,15 +120,18 @@ export default function Game({ roomId, seat, initialState, onLeave }) {
 
       {error && <div className="error-banner">{error}</div>}
 
-      <div className="board-wrap">
-        <Chessboard
-          options={{
-            position: state.fen,
-            onPieceDrop,
-            boardOrientation: seat === 'black' ? 'black' : 'white',
-            allowDragging: isPlayer && seat === turnSeat && !gameOver,
-          }}
-        />
+      <div className="board-frame">
+        <div className="board-wrap">
+          <Chessboard
+            options={{
+              position: state.fen,
+              onPieceDrop,
+              boardOrientation: seat === 'black' ? 'black' : 'white',
+              allowDragging: isPlayer && seat === turnSeat && !gameOver,
+              ...boardTheme,
+            }}
+          />
+        </div>
       </div>
 
       <div className="players">
