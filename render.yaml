@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: echec-et-mat-server
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: CLIENT_ORIGIN
+        value: "*"

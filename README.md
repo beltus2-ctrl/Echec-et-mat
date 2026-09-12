@@ -66,10 +66,30 @@ client/   Interface React (Vite)
 
 ## Déploiement
 
-- **Serveur** : toute plateforme Node.js (Render, Railway, Fly.io, etc.). Définir
-  `CLIENT_ORIGIN` sur l'URL du client déployé pour restreindre les CORS.
-- **Client** : `npm run build` produit un dossier `dist/` statique, déployable sur
-  Vercel, Netlify, etc. Définir `VITE_SERVER_URL` sur l'URL du serveur déployé.
+### Serveur — en un clic avec Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/beltus2-ctrl/Echec-et-mat)
+
+Ce dépôt contient un `render.yaml` qui décrit déjà le service (build, démarrage,
+health check). En cliquant sur le bouton :
+
+1. Connectez-vous avec votre compte GitHub (Render le demande — c'est la seule
+   étape qui nécessite votre identité, personne ne peut la faire à votre place).
+2. Render détecte `render.yaml` et propose de créer le service `echec-et-mat-server`
+   sur le plan gratuit — validez.
+3. Une fois déployé (1-2 minutes), copiez l'URL du service (ex.
+   `https://echec-et-mat-server.onrender.com`).
+
+Cette URL est celle à utiliser comme `VITE_SERVER_URL` pour le client web et
+pour l'appli mobile (voir plus bas).
+
+Alternative manuelle : toute plateforme Node.js (Railway, Fly.io, etc.) —
+définir `CLIENT_ORIGIN` sur l'URL du client déployé pour restreindre les CORS.
+
+### Client
+
+`npm run build` produit un dossier `dist/` statique, déployable sur Vercel,
+Netlify, etc. Définir `VITE_SERVER_URL` sur l'URL du serveur déployé.
 
 ## Application mobile Android (Capacitor)
 
