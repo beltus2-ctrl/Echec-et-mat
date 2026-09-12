@@ -1,0 +1,8 @@
+{
+  "appId": "com.echecetmat.app",
+  "appName": "Échec et Mat",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
