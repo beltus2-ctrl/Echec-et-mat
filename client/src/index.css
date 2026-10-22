@@ -2184,7 +2184,7 @@ img {
   letter-spacing: 0.02em;
 }
 
-.pc-head > div {
+.pc-head > div:not(.avatar) {
   flex: 1;
 }
 
