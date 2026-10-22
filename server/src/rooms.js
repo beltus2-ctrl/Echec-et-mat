@@ -13,10 +13,13 @@ function createRoom() {
   const room = {
     id: roomId,
     chess: new Chess(),
-    players: { white: null, black: null },
-    names: { white: null, black: null },
+    // a seat survives a short disconnection thanks to the player's stable id
+    seats: { w: null, b: null }, // { playerId, socketId, name }
     spectators: new Set(),
     drawOfferedBy: null,
+    rematchBy: null,
+    result: null,
+    touchedAt: Date.now(),
   };
   rooms.set(roomId, room);
   return room;
@@ -30,67 +33,113 @@ function deleteRoom(roomId) {
   rooms.delete(roomId);
 }
 
-function assignSeat(room, socketId, name) {
-  if (!room.players.white) {
-    room.players.white = socketId;
-    room.names.white = name;
-    return 'white';
+function seatOfPlayer(room, playerId) {
+  if (room.seats.w?.playerId === playerId) return 'w';
+  if (room.seats.b?.playerId === playerId) return 'b';
+  return null;
+}
+
+function seatOf(room, socketId) {
+  if (room.seats.w?.socketId === socketId) return 'w';
+  if (room.seats.b?.socketId === socketId) return 'b';
+  if (room.spectators.has(socketId)) return 'spectator';
+  return null;
+}
+
+function assignSeat(room, { socketId, playerId, name, prefer }) {
+  room.touchedAt = Date.now();
+  const existing = playerId ? seatOfPlayer(room, playerId) : null;
+  if (existing) {
+    room.seats[existing].socketId = socketId;
+    if (name) room.seats[existing].name = name;
+    return existing;
   }
-  if (!room.players.black) {
-    room.players.black = socketId;
-    room.names.black = name;
-    return 'black';
+  const order = prefer === 'b' ? ['b', 'w'] : ['w', 'b'];
+  for (const c of order) {
+    if (!room.seats[c]) {
+      room.seats[c] = { playerId, socketId, name };
+      return c;
+    }
   }
   room.spectators.add(socketId);
   return 'spectator';
 }
 
-function seatOf(room, socketId) {
-  if (room.players.white === socketId) return 'white';
-  if (room.players.black === socketId) return 'black';
-  if (room.spectators.has(socketId)) return 'spectator';
+// Marks the player as disconnected but keeps the seat so they can come back.
+function disconnect(room, socketId) {
+  for (const c of ['w', 'b']) {
+    if (room.seats[c]?.socketId === socketId) {
+      room.seats[c].socketId = null;
+      return c;
+    }
+  }
+  room.spectators.delete(socketId);
   return null;
 }
 
-function removePlayer(room, socketId) {
-  let vacated = null;
-  if (room.players.white === socketId) {
-    room.players.white = null;
-    room.names.white = null;
-    vacated = 'white';
-  } else if (room.players.black === socketId) {
-    room.players.black = null;
-    room.names.black = null;
-    vacated = 'black';
-  } else {
-    room.spectators.delete(socketId);
+function leave(room, socketId) {
+  for (const c of ['w', 'b']) {
+    if (room.seats[c]?.socketId === socketId) {
+      room.seats[c] = null;
+      return c;
+    }
   }
-  return vacated;
+  room.spectators.delete(socketId);
+  return null;
+}
+
+function isEmpty(room) {
+  return !room.seats.w?.socketId && !room.seats.b?.socketId && room.spectators.size === 0;
 }
 
 function gameStatus(chess) {
   if (chess.isCheckmate()) return 'checkmate';
   if (chess.isStalemate()) return 'stalemate';
   if (chess.isThreefoldRepetition()) return 'repetition';
-  if (chess.isInsufficientMaterial()) return 'insufficient_material';
-  if (chess.isDraw()) return 'draw';
+  if (chess.isInsufficientMaterial()) return 'insufficient';
+  if (chess.isDrawByFiftyMoves()) return 'fifty';
   if (chess.isCheck()) return 'check';
   return 'in_progress';
 }
 
+function resultFromBoard(chess) {
+  const status = gameStatus(chess);
+  if (status === 'checkmate') return { winner: chess.turn() === 'w' ? 'b' : 'w', reason: 'checkmate' };
+  if (['stalemate', 'repetition', 'insufficient', 'fifty'].includes(status)) return { winner: null, reason: status };
+  return null;
+}
+
+function swapSeats(room) {
+  const { w, b } = room.seats;
+  room.seats = { w: b, b: w };
+}
+
 function publicState(room) {
+  const seat = (c) => room.seats[c];
   return {
     roomId: room.id,
     fen: room.chess.fen(),
-    turn: room.chess.turn() === 'w' ? 'white' : 'black',
-    history: room.chess.history({ verbose: true }),
+    turn: room.chess.turn(),
+    history: room.chess.history({ verbose: true }).map((m) => ({ from: m.from, to: m.to, san: m.san, color: m.color })),
     status: gameStatus(room.chess),
-    names: room.names,
-    hasWhite: !!room.players.white,
-    hasBlack: !!room.players.black,
+    names: { w: seat('w')?.name || null, b: seat('b')?.name || null },
+    players: {
+      w: seat('w') ? { id: seat('w').playerId, connected: !!seat('w').socketId } : null,
+      b: seat('b') ? { id: seat('b').playerId, connected: !!seat('b').socketId } : null,
+    },
     spectatorCount: room.spectators.size,
     drawOfferedBy: room.drawOfferedBy,
+    rematchBy: room.rematchBy,
+    result: room.result,
   };
+}
+
+// Drop rooms nobody touched for a few hours.
+function sweep(maxIdleMs = 4 * 60 * 60 * 1000) {
+  const now = Date.now();
+  for (const [id, room] of rooms) {
+    if (now - room.touchedAt > maxIdleMs) rooms.delete(id);
+  }
 }
 
 export {
@@ -100,7 +149,13 @@ export {
   deleteRoom,
   assignSeat,
   seatOf,
-  removePlayer,
+  seatOfPlayer,
+  disconnect,
+  leave,
+  isEmpty,
   gameStatus,
+  resultFromBoard,
+  swapSeats,
   publicState,
+  sweep,
 };

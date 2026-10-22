@@ -1,8 +1,25 @@
 {
   "appId": "com.echecetmat.app",
-  "appName": "Échec et Mat",
+  "appName": "Échec & Mat",
   "webDir": "dist",
+  "backgroundColor": "#061220",
   "server": {
     "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#061220"
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "insetsHandling": "css"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#061220",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    }
   }
 }

@@ -63,8 +63,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-build-${{ github.run_number }}
-          name: Échec et Mat — build Android ${{ github.run_number }}
+          name: Échec & Mat — version Android ${{ github.run_number }}
+          make_latest: true
           body: |
-            APK de débogage généré automatiquement depuis ${{ github.ref_name }} (commit ${{ github.sha }}).
-            Installable directement sur un appareil Android (activer "Sources inconnues" si demandé).
+            📱 **Téléchargez `echec-et-mat.apk` ci-dessous et ouvrez-le sur votre téléphone Android.**
+            Si Android le demande, autorisez « Installer des applications inconnues ».
+
+            Contre l'ordinateur (8 niveaux) · Deux joueurs sur le même téléphone · Inviter un ami en ligne · Puzzles de mat.
+
+            Construit depuis `${{ github.ref_name }}` (commit ${{ github.sha }}).
           files: client/android/app/build/outputs/apk/debug/echec-et-mat.apk

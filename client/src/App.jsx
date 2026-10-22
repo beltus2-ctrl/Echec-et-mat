@@ -1,145 +1,150 @@
-import { useEffect, useState } from 'react';
-import { socket } from './socket';
-import Game from './components/Game';
-import './App.css';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { App as CapApp } from '@capacitor/app';
+import { SplashScreen } from '@capacitor/splash-screen';
+import { Capacitor } from '@capacitor/core';
+import Home from './screens/Home';
+import GameScreen from './screens/GameScreen';
+import PuzzleScreen from './screens/PuzzleScreen';
+import Online from './screens/Online';
+import { AiSetup, LocalSetup } from './screens/Setup';
+import { PuzzleList, HistoryList, Replay, Settings } from './screens/Lists';
+import Icon from './components/Icons';
+import { pieceUrl, boardUrl } from './lib/chessUtil';
+import { engine } from './lib/engine';
+import { play } from './lib/feedback';
 
-function App() {
-  const [name, setName] = useState('');
-  const [joinCode, setJoinCode] = useState('');
-  const [connecting, setConnecting] = useState(false);
-  const [slowConnect, setSlowConnect] = useState(false);
-  const [session, setSession] = useState(null);
-  const [error, setError] = useState('');
+const TABS = [
+  { name: 'home', label: 'Accueil', icon: 'home' },
+  { name: 'puzzles', label: 'Puzzles', icon: 'puzzle' },
+  { name: 'history', label: 'Parties', icon: 'history' },
+  { name: 'settings', label: 'Profil', icon: 'settings' },
+];
 
-  useEffect(() => {
-    function handleJoined({ roomId, seat, state }) {
-      setSession({ roomId, seat, initialState: state });
-      setConnecting(false);
-    }
-    function handleError({ message }) {
-      setError(message);
-      setConnecting(false);
-    }
-    function handleDisconnect() {
-      setSession(null);
-      setError('Connexion au serveur perdue.');
-    }
+function preload() {
+  for (const c of 'wb') for (const t of 'pnbrqk') new Image().src = pieceUrl(c, t);
+  for (const b of ['classic', 'walnut', 'marble']) new Image().src = boardUrl(b);
+}
 
-    socket.on('joined', handleJoined);
-    socket.on('errorMessage', handleError);
-    socket.on('disconnect', handleDisconnect);
-    return () => {
-      socket.off('joined', handleJoined);
-      socket.off('errorMessage', handleError);
-      socket.off('disconnect', handleDisconnect);
-    };
+export default function App() {
+  const [stack, setStack] = useState([{ name: 'home', params: {}, key: 0 }]);
+  const route = stack[stack.length - 1];
+  const keyRef = useRef(1);
+
+  const go = useCallback((name, params = {}, { replace = false, reset = false } = {}) => {
+    const entry = { name, params, key: keyRef.current++ };
+    setStack((s) => {
+      if (reset) return [s[0], entry].filter((e) => e.name !== name || e === entry);
+      if (TABS.some((t) => t.name === name)) return name === 'home' ? [s[0]] : [s[0], entry];
+      return replace ? [...s.slice(0, -1), entry] : [...s, entry];
+    });
+    window.scrollTo(0, 0);
   }, []);
 
+  const back = useCallback(() => {
+    setStack((s) => (s.length > 1 ? s.slice(0, -1) : s));
+  }, []);
+
+  const home = useCallback(() => setStack((s) => [s[0]]), []);
+
   useEffect(() => {
-    if (!connecting) {
-      setSlowConnect(false);
-      return;
-    }
-    const timer = setTimeout(() => setSlowConnect(true), 4000);
-    return () => clearTimeout(timer);
-  }, [connecting]);
+    preload();
+    // warm the engine up in the background so the first bot move is instant
+    const t = setTimeout(() => engine.init().catch(() => {}), 800);
+    if (Capacitor.isNativePlatform()) SplashScreen.hide().catch(() => {});
+    return () => clearTimeout(t);
+  }, []);
 
-  function withConnection(action) {
-    if (socket.connected) {
-      action();
-    } else {
-      socket.once('connect', action);
-      socket.connect();
-    }
+  const stackRef = useRef(stack);
+  stackRef.current = stack;
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const sub = CapApp.addListener('backButton', () => {
+      // Open modals close first
+      const backdrop = document.querySelector('.modal-backdrop');
+      if (backdrop) {
+        backdrop.click();
+        return;
+      }
+      if (stackRef.current.length > 1) {
+        const inGame = document.querySelector('.game-screen .topbar .icon-btn');
+        if (inGame) inGame.click();
+        else back();
+      } else CapApp.exitApp();
+    });
+    return () => {
+      sub.then((h) => h.remove());
+    };
+  }, [back]);
+
+  const startGame = (config) => go('game', { config }, { replace: true });
+
+  let screen;
+  const p = route.params;
+  switch (route.name) {
+    case 'ai-setup':
+      screen = <AiSetup onBack={back} onStart={startGame} />;
+      break;
+    case 'local-setup':
+      screen = <LocalSetup onBack={back} onStart={startGame} />;
+      break;
+    case 'game':
+      screen = (
+        <GameScreen
+          config={p.config}
+          resume={p.resume}
+          onExit={home}
+          onRematch={(config) => go('game', { config }, { replace: true })}
+        />
+      );
+      break;
+    case 'online':
+      screen = <Online onBack={back} />;
+      break;
+    case 'puzzles':
+      screen = <PuzzleList onBack={home} onOpen={(id) => go('puzzle', { id })} />;
+      break;
+    case 'puzzle':
+      screen = <PuzzleScreen id={p.id} onExit={back} onOpen={(id) => go('puzzle', { id }, { replace: true })} />;
+      break;
+    case 'history':
+      screen = <HistoryList onBack={home} onOpen={(id) => go('replay', { id })} />;
+      break;
+    case 'replay':
+      screen = <Replay id={p.id} onBack={back} />;
+      break;
+    case 'settings':
+      screen = <Settings onBack={home} />;
+      break;
+    default:
+      screen = <Home go={go} />;
   }
 
-  function createRoom() {
-    setError('');
-    setConnecting(true);
-    withConnection(() => socket.emit('createRoom', { name: name.trim() || 'Joueur 1' }));
-  }
-
-  function joinRoom(e) {
-    e.preventDefault();
-    if (!joinCode.trim()) return;
-    setError('');
-    setConnecting(true);
-    withConnection(() =>
-      socket.emit('joinRoom', {
-        roomId: joinCode.trim().toUpperCase(),
-        name: name.trim() || 'Joueur',
-      })
-    );
-  }
-
-  function leaveRoom() {
-    if (session) socket.emit('leaveRoom', { roomId: session.roomId });
-    socket.disconnect();
-    setSession(null);
-  }
-
-  if (session) {
-    return (
-      <Game
-        roomId={session.roomId}
-        seat={session.seat}
-        initialState={session.initialState}
-        onLeave={leaveRoom}
-      />
-    );
-  }
+  const showTabs = TABS.some((t) => t.name === route.name);
 
   return (
-    <div className="lobby">
-      <h1>♟️ Échec et Mat</h1>
-      <p className="subtitle">Jeu d'échecs multijoueur en temps réel</p>
-
-      <label className="field">
-        Votre nom
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Joueur"
-          maxLength={20}
-        />
-      </label>
-
-      {error && <div className="error-banner">{error}</div>}
-
-      {connecting && (
-        <div className="connecting-banner">
-          Connexion en cours…
-          {slowConnect && (
-            <span className="connecting-hint">
-              {' '}
-              Le serveur se réveille peut-être après une période d'inactivité,
-              ça peut prendre jusqu'à 30-50 secondes.
-            </span>
-          )}
-        </div>
+    <div className="app">
+      <div className="app-bg" aria-hidden />
+      <main className="view" key={route.key}>
+        {screen}
+      </main>
+      {showTabs && (
+        <nav className="tabbar">
+          {TABS.map((t) => (
+            <button
+              key={t.name}
+              type="button"
+              className={route.name === t.name ? 'on' : ''}
+              onClick={() => {
+                if (route.name !== t.name) play('tap');
+                go(t.name);
+              }}
+            >
+              <Icon name={t.icon} size={22} />
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </nav>
       )}
-
-      <div className="lobby-actions">
-        <button className="primary" onClick={createRoom} disabled={connecting}>
-          Créer une salle
-        </button>
-
-        <div className="divider">ou</div>
-
-        <form onSubmit={joinRoom} className="join-form">
-          <input
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="Code de la salle"
-            maxLength={6}
-          />
-          <button type="submit" disabled={connecting}>
-            Rejoindre
-          </button>
-        </form>
-      </div>
     </div>
   );
 }
-
-export default App;

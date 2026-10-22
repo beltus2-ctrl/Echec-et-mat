@@ -4,3 +4,8 @@ dist/
 *.log
 npm-debug.log*
 .DS_Store
+tools/render/out/
+tools/render/boards/
+tools/render/bundle.js
+tools/render/page.html
+tools/puzzles/*.jsonl
