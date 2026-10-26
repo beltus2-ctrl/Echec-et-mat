@@ -43,7 +43,7 @@ repository secret**, crée ces 4 secrets :
 | `ANDROID_KEY_ALIAS` | `echecetmat` |
 | `ANDROID_KEY_PASSWORD` | le mot de passe de la clé (souvent le même) |
 
-Puis **Actions → Build Play Store (AAB) → Run workflow**. Au bout de 3 minutes,
+Puis **Actions → Build Play Store (AAB) → Run workflow** *(ce bouton n'apparaît que lorsque le fichier du workflow est sur la branche principale du dépôt : fusionne d'abord cette branche)*. Au bout de 3 minutes,
 télécharge l'artefact `echec-et-mat-playstore` : il contient le fichier `.aab`.
 
 > Si l'artefact s'appelle `echec-et-mat-TEST-non-publiable`, c'est que les secrets

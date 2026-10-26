@@ -91,8 +91,11 @@ Les 3 premières sont les plus vues : elles doivent donner envie en une seconde.
 - **Adresse e-mail** : *ton adresse de contact* (obligatoire, visible sur la fiche)
 - **Site web** : `https://github.com/beltus2-ctrl/Echec-et-mat` (facultatif)
 - **Règles de confidentialité** (URL obligatoire) :
-  `https://github.com/beltus2-ctrl/Echec-et-mat/blob/main/docs/confidentialite.md`
-  *(le lien fonctionnera une fois la branche fusionnée dans `main`)*
+  `https://github.com/beltus2-ctrl/Echec-et-mat/blob/HEAD/docs/confidentialite.md`
+  *(`HEAD` désigne la branche principale du dépôt : le lien fonctionne dès que
+  cette branche est fusionnée dans la branche principale. En attendant, ce lien
+  marche déjà :
+  `https://github.com/beltus2-ctrl/Echec-et-mat/blob/claude/chess-multiplayer-app-622uol/docs/confidentialite.md`)*
 
 ---
 

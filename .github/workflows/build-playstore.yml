@@ -12,6 +12,9 @@ name: Build Play Store (AAB)
 
 on:
   workflow_dispatch: {}
+  push:
+    paths:
+      - '.github/workflows/build-playstore.yml'
 
 jobs:
   bundle:
