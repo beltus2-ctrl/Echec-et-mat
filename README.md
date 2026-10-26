@@ -1,140 +1,100 @@
-# ♟️ Échec et Mat
+# ♚ Échec & Mat
 
-Application d'échecs multijoueur en temps réel : créez une salle, partagez son code
-avec un adversaire, et jouez aux échecs en direct dans le navigateur.
+Une application d'échecs **100 % gratuite**, sans publicité, au design soigné :
+échiquier en bois et pièces 3D façon Staunton, animations fluides, sons et vibrations.
 
-## Stack technique
+## Ce que l'on peut faire
 
-- **Client** : React 19 (Vite), [react-chessboard](https://www.npmjs.com/package/react-chessboard) pour l'échiquier, `socket.io-client` pour le temps réel.
-- **Serveur** : Node.js, Express, Socket.io, [chess.js](https://www.npmjs.com/package/chess.js) comme arbitre faisant autorité (validation des coups, détection d'échec/mat/pat).
+| Mode | Description | Internet ? |
+| --- | --- | --- |
+| **Contre l'ordinateur** | 8 adversaires, de Léo (débutant, ~400 Elo) à Stockfish (grand maître, ~2800 Elo). Choix de la couleur, indices, annulation de coup, proposition de nulle. | Non |
+| **Deux joueurs** | Sur le même téléphone, avec pendule optionnelle (3+2, 5, 10, 15+10 min) et retournement automatique de l'échiquier. | Non |
+| **Inviter un ami** | Partie en ligne : créez une partie, envoyez le code par WhatsApp/SMS, votre ami le saisit et vous jouez à distance. Revanche, nulle, abandon, reconnexion automatique. | Oui |
+| **Puzzles** | « Trouver l'échec et mat » : mats en 1, 2 et 3 coups vérifiés par Stockfish, avec indice et solution, plus un **défi du jour**. | Non |
 
-Le serveur est la seule source de vérité sur l'état de la partie : chaque coup est
-validé côté serveur avant d'être diffusé aux deux joueurs.
+Et aussi : classement Elo avec courbe de progression, niveaux et XP, historique des
+parties avec relecture coup par coup, reprise automatique d'une partie interrompue,
+3 échiquiers (bois clair, noyer, marbre), notation française (R, D, T, F, C).
 
-## Fonctionnalités
+## Installer l'application sur Android
 
-- Création de salle avec code à partager (6 caractères)
-- Rejoindre une salle par code
-- Échiquier interactif (glisser-déposer)
-- Validation des coups et tour par tour
-- Détection : échec, échec et mat, pat, nulle par matériel insuffisant / répétition
-- Abandon, proposition et acceptation de nulle
-- Revanche (nouvelle partie dans la même salle)
-- Support spectateur (au-delà de 2 joueurs dans une salle)
-- Historique des coups (notation SAN)
+1. Ouvrez l'onglet **Releases** du dépôt GitHub et téléchargez `echec-et-mat.apk`
+   de la version la plus récente.
+2. Ouvrez le fichier sur le téléphone. Android demande d'autoriser
+   « Installer des applications inconnues » pour l'application qui ouvre le fichier
+   (Chrome, Fichiers, WhatsApp…) : acceptez, puis **Installer**.
+3. Partagez le même APK à vos amis pour jouer ensemble.
 
-## Démarrage local
-
-### Serveur
-
-```bash
-cd server
-npm install
-cp .env.example .env   # optionnel, valeurs par défaut déjà adaptées au dev local
-npm run dev
-```
-
-Le serveur écoute par défaut sur `http://localhost:3001`.
-
-### Client
-
-Dans un autre terminal :
-
-```bash
-cd client
-npm install
-cp .env.example .env   # optionnel, pointe déjà vers http://localhost:3001
-npm run dev
-```
-
-Ouvrez `http://localhost:5173`, créez une salle, puis ouvrez un second onglet
-(ou partagez le code) pour rejoindre en tant que second joueur.
+L'APK est construit automatiquement par GitHub Actions à chaque modification du
+dossier `client/` (workflow `.github/workflows/build-android.yml`).
 
 ## Structure du projet
 
 ```
-server/   API temps réel (Express + Socket.io + chess.js)
+client/                     Application (React 19 + Vite, packagée avec Capacitor 8)
   src/
-    index.js   Point d'entrée, gestion des événements socket
-    rooms.js    Gestion des salles et de l'état de partie
-client/   Interface React (Vite)
-  src/
-    App.jsx              Écran d'accueil (créer / rejoindre une salle)
-    components/Game.jsx  Écran de jeu (échiquier, contrôles, historique)
-    socket.js             Instance socket.io-client partagée
+    App.jsx                 Navigation entre les écrans, bouton retour Android
+    components/Board.jsx    Échiquier : pièces 3D, animations, glisser-déposer, flèches
+    screens/                Accueil, parties, puzzles, en ligne, historique, réglages
+    lib/engine.js           Moteur Stockfish (WebAssembly) et les 8 niveaux
+    lib/store.js            Sauvegarde locale : profil, Elo, XP, historique
+    lib/feedback.js         Sons synthétisés et vibrations
+    data/puzzles.json       Puzzles de mat générés et vérifiés par Stockfish
+  public/assets/            Pièces 3D et échiquiers (rendus à partir de modèles 3D)
+  public/engine/            Stockfish 19 « lite » (WASM, fonctionne hors ligne)
+  android/                  Projet Android natif (Capacitor)
+server/                     Serveur temps réel pour le mode en ligne (Node + Socket.io)
 ```
 
-## Déploiement
+## Développement
 
-### Serveur — en un clic avec Render
+```bash
+# Application
+cd client
+npm install
+npm run dev          # http://localhost:5173
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/beltus2-ctrl/Echec-et-mat)
+# Serveur du mode en ligne (dans un autre terminal)
+cd server
+npm install
+npm run dev          # http://localhost:3001
+```
 
-Ce dépôt contient un `render.yaml` qui décrit déjà le service (build, démarrage,
-health check). En cliquant sur le bouton :
+En développement, l'application se connecte à `http://localhost:3001`. En production,
+elle utilise `VITE_SERVER_URL` (par défaut `https://echec-et-mat-server.onrender.com`).
 
-1. Connectez-vous avec votre compte GitHub (Render le demande — c'est la seule
-   étape qui nécessite votre identité, personne ne peut la faire à votre place).
-2. Render détecte `render.yaml` et propose de créer le service `echec-et-mat-server`
-   sur le plan gratuit — validez.
-3. Une fois déployé (1-2 minutes), copiez l'URL du service (ex.
-   `https://echec-et-mat-server.onrender.com`).
-
-Cette URL est celle à utiliser comme `VITE_SERVER_URL` pour le client web et
-pour l'appli mobile (voir plus bas).
-
-Alternative manuelle : toute plateforme Node.js (Railway, Fly.io, etc.) —
-définir `CLIENT_ORIGIN` sur l'URL du client déployé pour restreindre les CORS.
-
-### Client
-
-`npm run build` produit un dossier `dist/` statique, déployable sur Vercel,
-Netlify, etc. Définir `VITE_SERVER_URL` sur l'URL du serveur déployé.
-
-## Application mobile Android (Capacitor)
-
-Le client est packagé en application Android native avec
-[Capacitor](https://capacitorjs.com/). Le projet natif se trouve dans
-`client/android/`.
-
-**Important** : l'application mobile a besoin du serveur temps réel (Socket.io)
-pour fonctionner — ce n'est pas une appli hors-ligne. Le serveur doit être
-déployé quelque part en **HTTPS** (Android bloque le trafic non chiffré par
-défaut) et accessible depuis Internet, avant de builder l'APK.
-
-### Récupérer l'APK automatiquement (recommandé)
-
-Un workflow GitHub Actions (`.github/workflows/build-android.yml`) build un
-APK de débogage installable à chaque push sur `client/**`, et le publie comme
-**Release** GitHub (onglet *Releases* du dépôt) et comme artefact de build.
-
-1. Déployez `server/` (voir ci-dessus) et notez son URL HTTPS.
-2. Dans les paramètres du dépôt GitHub : **Settings → Secrets and variables →
-   Actions → Variables → New repository variable**, créez `VITE_SERVER_URL`
-   avec cette URL.
-3. Relancez le workflow (`Actions → Build Android APK → Run workflow`, ou un
-   nouveau push sur `client/`).
-4. Téléchargez `echec-et-mat.apk` depuis la Release publiée, transférez-le sur
-   un téléphone Android et installez-le (autoriser "Installer des
-   applications inconnues" pour l'app utilisée pour l'ouvrir).
-
-L'APK est signé avec la clé de débogage par défaut : parfait pour tester sur
-vos propres appareils, mais pas destiné à une publication sur le Play Store
-(qui nécessite une signature de release dédiée).
-
-### Builder localement (nécessite Android Studio / le SDK Android)
+### Construire l'APK soi-même (Android Studio ou SDK Android requis)
 
 ```bash
 cd client
 npm install
-echo "VITE_SERVER_URL=https://votre-serveur.example.com" > .env
 npm run build
 npx cap sync android
 cd android
 ./gradlew assembleDebug
-# APK généré dans android/app/build/outputs/apk/debug/app-debug.apk
+# → android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Vous pouvez aussi ouvrir `client/android` dans Android Studio
-(`npx cap open android`) pour lancer l'app sur un émulateur ou builder l'APK
-depuis l'IDE.
+## Serveur du mode en ligne
+
+Seul le mode « Inviter un ami » a besoin d'Internet. Le serveur (`server/`) est
+déployable gratuitement sur Render en un clic grâce au fichier `render.yaml` :
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/beltus2-ctrl/Echec-et-mat)
+
+Le plan gratuit de Render met le serveur en veille après 15 minutes d'inactivité ;
+le premier accès peut alors prendre jusqu'à une minute (l'application l'indique).
+Le workflow `keep-alive.yml` le réveille régulièrement pour limiter cette attente.
+
+Si vous déployez le serveur à une autre adresse, définissez la variable de dépôt
+GitHub `VITE_SERVER_URL` (Settings → Secrets and variables → Actions → Variables)
+puis relancez le workflow de build Android.
+
+## Licences et crédits
+
+- Moteur d'échecs : [Stockfish](https://stockfishchess.org/) via
+  [stockfish.js](https://github.com/nmrugg/stockfish.js), licence GPL v3
+  (`client/public/engine/COPYING-stockfish.txt`).
+- Règles du jeu : [chess.js](https://github.com/jhlywa/chess.js).
+- Polices : Oswald et Inter (SIL Open Font License).
+- Pièces 3D, échiquiers, icône et sons : créés pour ce projet.

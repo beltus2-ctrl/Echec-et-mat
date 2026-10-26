@@ -1,0 +1,89 @@
+name: Build Play Store (AAB)
+
+# Builds the signed Android App Bundle to upload to the Google Play Console.
+# Run it from the Actions tab ("Run workflow").
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64   upload keystore encoded in base64
+#   ANDROID_KEYSTORE_PASSWORD keystore password
+#   ANDROID_KEY_ALIAS         key alias
+#   ANDROID_KEY_PASSWORD      key password
+# Without these secrets the bundle is signed with a throwaway key: it proves the
+# build works but cannot be uploaded to Google Play.
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - '.github/workflows/build-playstore.yml'
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install client dependencies
+        run: npm ci
+
+      - name: Build web assets
+        env:
+          VITE_SERVER_URL: ${{ vars.VITE_SERVER_URL || 'https://echec-et-mat-server.onrender.com' }}
+        run: npm run build
+
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Install required Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Prepare signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          KS="$RUNNER_TEMP/upload.jks"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$KS"
+            echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "BUNDLE_NAME=echec-et-mat-playstore" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secrets de signature absents : bundle signé avec une clé jetable, NON publiable sur Google Play."
+            keytool -genkeypair -v -keystore "$KS" -alias test -keyalg RSA -keysize 2048 -validity 1 \
+              -storepass testtest -keypass testtest -dname "CN=Test"
+            echo "ANDROID_KEYSTORE_PASSWORD=testtest" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=test" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=testtest" >> "$GITHUB_ENV"
+            echo "BUNDLE_NAME=echec-et-mat-TEST-non-publiable" >> "$GITHUB_ENV"
+          fi
+          echo "ANDROID_KEYSTORE_PATH=$KS" >> "$GITHUB_ENV"
+
+      - name: Build signed release bundle
+        working-directory: client/android
+        run: VERSION_CODE=$((100 + GITHUB_RUN_NUMBER)) ./gradlew bundleRelease --no-daemon
+
+      - name: Rename bundle
+        run: cp android/app/build/outputs/bundle/release/app-release.aab "android/app/build/outputs/bundle/release/${BUNDLE_NAME}.aab"
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: client/android/app/build/outputs/bundle/release/${{ env.BUNDLE_NAME }}.aab

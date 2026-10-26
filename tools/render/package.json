@@ -1,0 +1,13 @@
+{
+  "name": "echec-et-mat-render",
+  "private": true,
+  "type": "module",
+  "description": "Rendu des pièces 3D et des échiquiers de l'application",
+  "dependencies": {
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.55.0",
+    "three": "0.186.1",
+    "three-bvh-csg": "0.0.18",
+    "three-mesh-bvh": "^0.9.0"
+  }
+}

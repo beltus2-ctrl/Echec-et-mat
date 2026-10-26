@@ -1,0 +1,9 @@
+{
+  "name": "echec-et-mat-puzzles",
+  "private": true,
+  "description": "Génération des puzzles de mat avec Stockfish",
+  "dependencies": {
+    "chess.js": "1.4.0",
+    "stockfish": "19.0.1"
+  }
+}
